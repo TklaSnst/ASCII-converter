@@ -7,24 +7,26 @@ import io
 # Символы от тёмного к светлому (по плотности заливки)
 ASCII_CHARS = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
 
+# Соотношение сторон ячейки символа (ширина/высота). У моноширинного шрифта символ выше, чем широкий.
+CHAR_CELL_ASPECT = 0.45
+
 
 def image_to_ascii(image: Image.Image, width: int = 120, height: int | None = None) -> str:
     """
-    Конвертирует изображение в строку ASCII-символов.
+    Конвертирует изображение в строку ASCII-символов с сохранением пропорций изображения.
 
     :param image: исходное изображение (PIL Image)
     :param width: количество символов по ширине (число столбцов)
-    :param height: количество строк (если None — вычисляется по пропорциям)
+    :param height: количество строк (если None — вычисляется по пропорциям с учётом не квадратности символа)
     :return: многострочная строка с ASCII-артом
     """
     gray = image.convert("L")
     orig_w, orig_h = gray.size
 
     if height is None:
-        # Сохраняем пропорции: высота в символах ~ (orig_h / orig_w) * width * (примерно 0.5 из-за высоты символа)
-        aspect = orig_h / orig_w
-        cell_aspect = 2.2  # символ в консоли обычно выше, чем широкий
-        height = max(1, int(width * aspect / cell_aspect))
+        # Чтобы визуальное соотношение сторон совпадало с исходным изображением:
+        # (width * cell_w) / (height * cell_h) = orig_w / orig_h  =>  height = width * (cell_w/cell_h) * (orig_h/orig_w)
+        height = max(1, int(width * CHAR_CELL_ASPECT * (orig_h / orig_w)))
 
     small = gray.resize((width, height), Image.Resampling.LANCZOS)
     pixels = small.load()

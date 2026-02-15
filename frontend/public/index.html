@@ -30,19 +30,24 @@
 
     <main class="main-content">
         <div class="content-wrapper">
-            <div class="upload-area" id="uploadArea">
-                <input type="file" id="fileInput" accept="image/*" style="display: none;">
-                <div class="upload-placeholder" id="uploadPlaceholder">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
-                    <p class="upload-text">Нажмите или перетащите изображение сюда</p>
-                    <p class="upload-hint">Поддерживаются форматы: JPG, PNG, GIF</p>
+            <div class="work-zone" id="workZone">
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    <div class="upload-placeholder" id="uploadPlaceholder">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p class="upload-text">Нажмите или перетащите изображение сюда</p>
+                        <p class="upload-hint">Поддерживаются форматы: JPG, PNG, GIF</p>
+                    </div>
+                    <div class="image-preview" id="imagePreview" style="display: none;">
+                        <img id="previewImage" alt="Preview">
+                    </div>
                 </div>
-                <div class="image-preview" id="imagePreview" style="display: none;">
-                    <img id="previewImage" alt="Preview">
+                <div class="ascii-output-wrap" id="asciiOutputWrap" style="display: none;">
+                    <pre class="ascii-output" id="asciiOutput" readonly></pre>
                 </div>
             </div>
 
@@ -53,7 +58,7 @@
                         <p>Обработка изображения...</p>
                     </div>
                     <div class="actions" id="actions" style="display: none;">
-                        <button class="download-btn" id="downloadBtn">Скачать</button>
+                        <button class="copy-btn" id="copyBtn">Копировать</button>
                         <button class="upload-another-btn" id="uploadAnotherBtn">Загрузить еще</button>
                     </div>
                 </div>

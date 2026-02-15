@@ -1,10 +1,9 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
 from PIL import Image
 import io
 
-from ascii_processor import process_image_to_ascii_bytes
+from ascii_processor import image_to_ascii
 
 app = FastAPI(title="ASCII Converter API")
 
@@ -30,10 +29,9 @@ async def health_check():
 @app.post("/api/process-image")
 async def process_image(file: UploadFile = File(...)):
     """
-    Обрабатывает загруженное изображение: конвертирует в ASCII-арт
-    и возвращает изображение (PNG), на котором нарисован этот ASCII-арт.
+    Обрабатывает загруженное изображение: конвертирует в ASCII-арт и возвращает текст.
     """
     image_data = await file.read()
     image = Image.open(io.BytesIO(image_data)).convert("RGB")
-    png_bytes = process_image_to_ascii_bytes(image, width=120, font_size=8)
-    return Response(content=png_bytes, media_type="image/png")
+    ascii_text = image_to_ascii(image, width=120)
+    return {"ascii": ascii_text}

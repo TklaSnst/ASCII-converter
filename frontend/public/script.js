@@ -25,14 +25,17 @@ const uploadArea = document.getElementById('uploadArea');
 const uploadPlaceholder = document.getElementById('uploadPlaceholder');
 const imagePreview = document.getElementById('imagePreview');
 const previewImage = document.getElementById('previewImage');
-const downloadBtn = document.getElementById('downloadBtn');
+const workZone = document.getElementById('workZone');
+const asciiOutputWrap = document.getElementById('asciiOutputWrap');
+const asciiOutput = document.getElementById('asciiOutput');
+const copyBtn = document.getElementById('copyBtn');
 const uploadAnotherBtn = document.getElementById('uploadAnotherBtn');
 const processingIndicator = document.getElementById('processingIndicator');
 const statusSection = document.getElementById('statusSection');
 const actions = document.getElementById('actions');
 
 let currentImageUrl = null;
-let processedImageUrl = null;
+let currentAsciiText = null;
 
 // Click on upload area
 uploadArea.addEventListener('click', (e) => {
@@ -84,7 +87,6 @@ async function handleFile(file) {
     return;
   }
 
-  // Show preview
   const reader = new FileReader();
   reader.onload = (e) => {
     currentImageUrl = e.target.result;
@@ -92,12 +94,12 @@ async function handleFile(file) {
   };
   reader.readAsDataURL(file);
 
-  // Show processing indicator in sidebar
   statusSection.style.display = 'block';
   processingIndicator.style.display = 'flex';
   actions.style.display = 'none';
   uploadPlaceholder.style.display = 'none';
-  imagePreview.style.display = 'none';
+  imagePreview.style.display = 'flex';
+  previewImage.src = currentImageUrl;
   uploadArea.classList.add('processing');
 
   const formData = new FormData();
@@ -110,20 +112,18 @@ async function handleFile(file) {
     });
 
     if (response.ok) {
-      const blob = await response.blob();
-      processedImageUrl = URL.createObjectURL(blob);
-      showPreview(processedImageUrl);
+      const data = await response.json();
+      currentAsciiText = data.ascii || '';
+      showAsciiResult();
       processingIndicator.style.display = 'none';
       actions.style.display = 'flex';
     } else {
       alert('Ошибка при обработке изображения');
-      showPreview(currentImageUrl);
       processingIndicator.style.display = 'none';
     }
   } catch (error) {
     console.error('Error processing image:', error);
     alert('Ошибка при обработке изображения');
-    showPreview(currentImageUrl);
     processingIndicator.style.display = 'none';
   } finally {
     uploadArea.classList.remove('processing');
@@ -132,36 +132,44 @@ async function handleFile(file) {
 
 function showPreview(imageUrl) {
   previewImage.src = imageUrl;
+  previewImage.onload = () => {
+    const w = previewImage.naturalWidth;
+    const h = previewImage.naturalHeight;
+    if (w && h) uploadArea.style.aspectRatio = String(w / h);
+  };
   uploadPlaceholder.style.display = 'none';
   imagePreview.style.display = 'flex';
   uploadArea.classList.add('has-image');
 }
 
-downloadBtn.addEventListener('click', (e) => {
+function showAsciiResult() {
+  asciiOutput.textContent = currentAsciiText;
+  uploadArea.style.display = 'none';
+  asciiOutputWrap.style.display = 'flex';
+}
+
+copyBtn.addEventListener('click', (e) => {
   e.stopPropagation();
-  if (processedImageUrl) {
-    const link = document.createElement('a');
-    link.href = processedImageUrl;
-    link.download = 'processed-image.png';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  if (currentAsciiText) {
+    navigator.clipboard.writeText(currentAsciiText).then(() => {
+      const label = copyBtn.textContent;
+      copyBtn.textContent = 'Скопировано!';
+      setTimeout(() => { copyBtn.textContent = label; }, 1500);
+    }).catch(() => alert('Не удалось скопировать'));
   }
 });
 
 uploadAnotherBtn.addEventListener('click', () => {
-  // Cleanup
   if (currentImageUrl && currentImageUrl.startsWith('blob:')) {
     URL.revokeObjectURL(currentImageUrl);
   }
-  if (processedImageUrl && processedImageUrl.startsWith('blob:')) {
-    URL.revokeObjectURL(processedImageUrl);
-  }
-  
   currentImageUrl = null;
-  processedImageUrl = null;
+  currentAsciiText = null;
   fileInput.value = '';
-  
+
+  uploadArea.style.display = 'flex';
+  uploadArea.style.aspectRatio = '';
+  asciiOutputWrap.style.display = 'none';
   uploadPlaceholder.style.display = 'flex';
   imagePreview.style.display = 'none';
   statusSection.style.display = 'none';

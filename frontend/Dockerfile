@@ -1,8 +1,12 @@
-FROM nginx:1.27-alpine
+FROM node:20-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY public/ /usr/share/nginx/html/
+WORKDIR /app
 
-EXPOSE 80
+COPY package*.json ./
+RUN npm ci
 
-CMD ["nginx", "-g", "daemon off;"]
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

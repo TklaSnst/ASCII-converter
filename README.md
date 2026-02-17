@@ -1,51 +1,88 @@
 # ASCII Converter
 
-Проект на FastAPI + React с запуском через Docker Compose.
+Конвертер изображений в ASCII-арт с веб-интерфейсом.
 
 ## Структура проекта
 
-- `backend/` - FastAPI приложение
-- `frontend/` - React приложение
-- `docker-compose.yml` - конфигурация для запуска обоих сервисов
+```
+ascii-converter/
+├── backend/              # FastAPI сервер
+│   ├── ascii_processor.py  # Логика конвертации изображений
+│   ├── config.py           # Конфигурация (MAX_WIDTH, MAX_HEIGHT)
+│   ├── main.py             # API эндпоинты
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/             # React клиент
+│   ├── src/
+│   │   ├── App.jsx         # Основное приложение
+│   │   ├── main.jsx        # Точка входа
+│   │   └── index.css       # Стили
+│   ├── public/
+│   ├── Dockerfile
+│   ├── nginx.conf          # Конфигурация nginx
+│   ├── package.json
+│   └── vite.config.js
+├── docker-compose.yml      # Конфигурация Docker
+├── .gitignore
+└── README.md
+```
 
-## Запуск проекта
+## Требования
 
-### Требования
 - Docker
 - Docker Compose
 
-### Команды
+## Установка и запуск
 
-Запуск всех сервисов:
+### 1. Клонирование репозитория
+
 ```bash
-docker compose up --build
+git clone <repository-url>
+cd ascii-converter
 ```
 
-Запуск в фоновом режиме:
+### 2. Запуск через Docker Compose
+
 ```bash
+# Сборка и запуск всех сервисов
+docker compose up --build
+
+# Или в фоновом режиме
 docker compose up -d --build
 ```
 
-Остановка:
+### 3. Проверка работы
+
+После запуска доступны:
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **API документация (Swagger)**: http://localhost:8000/docs
+
+### 4. Остановка
+
 ```bash
 docker compose down
 ```
 
-## Проверка работы
+## Конфигурация
 
-После запуска доступны:
+### Изменение размеров ASCII-арта
 
-- **Frontend (React)**: http://localhost:3000
-  - На странице отображается статус работы React и FastAPI
+Откройте `backend/config.py`:
 
-- **Backend (FastAPI)**: http://localhost:8000
-  - Документация API: http://localhost:8000/docs
-  - Эндпоинт проверки: http://localhost:8000/api/health
+```python
+MAX_WIDTH = 90    # Максимальная ширина в символах
+MAX_HEIGHT = 60   # Максимальная высота в символах
+```
 
-## Эндпоинты для проверки
+### Изменение набора символов
 
-### FastAPI
-- `GET /api/health` - возвращает статус работы API
+В `backend/ascii_processor.py` переменная `ASCII_CHARS`:
 
-### React
-- Компонент `App.js` отображает статус работы React и проверяет подключение к FastAPI
+```python
+ASCII_CHARS = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
+```
+
+Символы должны быть отсортированы от тёмного к светлому.
+

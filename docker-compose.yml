@@ -6,10 +6,10 @@ services:
     container_name: ascii-converter-backend
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend:/app
     environment:
       - PYTHONUNBUFFERED=1
+    networks:
+      - ascii-network
     restart: unless-stopped
 
   frontend:
@@ -21,4 +21,10 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    networks:
+      - ascii-network
     restart: unless-stopped
+
+networks:
+  ascii-network:
+    driver: bridge

@@ -1,16 +1,21 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import './index.css'
 
-const API_URL = '/api/process-image'
+const IMAGE_API_URL = '/api/process-image'
+const CONVERT_GIF_URL = '/api/convert-gif'
+const CONVERT_VIDEO_URL = '/api/convert-video'
 
 function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
-  const [image, setImage] = useState(null)
-  const [imageUrl, setImageUrl] = useState(null)
+  const [mediaFile, setMediaFile] = useState(null)
+  const [mediaUrl, setMediaUrl] = useState(null)
+  const [mediaType, setMediaType] = useState(null) // 'image', 'gif', 'video'
   const [asciiText, setAsciiText] = useState(null)
+  const [asciiVideoUrl, setAsciiVideoUrl] = useState(null)
   const [processing, setProcessing] = useState(false)
   const [aspectRatio, setAspectRatio] = useState(1)
   const [asciiDimensions, setAsciiDimensions] = useState({ width: 0, height: 0 })
+  const videoRef = useRef(null)
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
@@ -18,37 +23,70 @@ function App() {
     localStorage.setItem('theme', newTheme)
   }
 
+  const getMediaType = (file) => {
+    if (file.type.startsWith('image/gif')) return 'gif'
+    if (file.type.startsWith('image/')) return 'image'
+    if (file.type.startsWith('video/')) return 'video'
+    return null
+  }
+
   const handleFile = async (file) => {
-    if (!file?.type?.startsWith('image/')) return
+    const type = getMediaType(file)
+    if (!type) return
 
     const url = URL.createObjectURL(file)
-    setImageUrl(url)
+    setMediaUrl(url)
+    setMediaType(type)
 
-    const img = new Image()
-    img.onload = () => {
-      setAspectRatio(img.naturalWidth / img.naturalHeight)
+    if (type === 'image' || type === 'gif') {
+      const img = new Image()
+      img.onload = () => {
+        setAspectRatio(img.naturalWidth / img.naturalHeight)
+      }
+      img.src = url
+    } else if (type === 'video') {
+      const video = document.createElement('video')
+      video.onloadedmetadata = () => {
+        setAspectRatio(video.videoWidth / video.videoHeight)
+      }
+      video.src = url
     }
-    img.src = url
 
-    setImage(file)
+    setMediaFile(file)
     setProcessing(true)
     setAsciiText(null)
+    setAsciiVideoUrl(null)
 
     const formData = new FormData()
     formData.append('file', file)
 
     try {
-      const res = await fetch(API_URL, { method: 'POST', body: formData })
-      if (res.ok) {
-        const data = await res.json()
-        setAsciiText(data.ascii || '')
-        setAsciiDimensions({ width: data.width || 0, height: data.height || 0 })
+      // Для изображений - получаем текст, для GIF/видео - сразу видео
+      if (type === 'image') {
+        const res = await fetch(IMAGE_API_URL, { method: 'POST', body: formData })
+        if (res.ok) {
+          const data = await res.json()
+          setAsciiText(data.ascii || '')
+          setAsciiDimensions({ width: data.width || 0, height: data.height || 0 })
+        } else {
+          alert('Ошибка при обработке изображения')
+        }
       } else {
-        alert('Ошибка при обработке изображения')
+        // Для GIF и видео - сразу конвертируем в видео
+        const convertUrl = type === 'gif' ? CONVERT_GIF_URL : CONVERT_VIDEO_URL
+        const res = await fetch(convertUrl, { method: 'POST', body: formData })
+        
+        if (res.ok) {
+          const blob = await res.blob()
+          const blobUrl = URL.createObjectURL(blob)
+          setAsciiVideoUrl(blobUrl)
+        } else {
+          alert('Ошибка при конвертации в ASCII видео')
+        }
       }
     } catch (err) {
       console.error(err)
-      alert('Ошибка при обработке изображения')
+      alert('Ошибка при обработке файла')
     } finally {
       setProcessing(false)
     }
@@ -66,16 +104,19 @@ function App() {
   }
 
   const reset = () => {
-    if (imageUrl?.startsWith('blob:')) URL.revokeObjectURL(imageUrl)
-    setImage(null)
-    setImageUrl(null)
+    if (mediaUrl?.startsWith('blob:')) URL.revokeObjectURL(mediaUrl)
+    if (asciiVideoUrl?.startsWith('blob:')) URL.revokeObjectURL(asciiVideoUrl)
+    setMediaFile(null)
+    setMediaUrl(null)
+    setMediaType(null)
     setAsciiText(null)
+    setAsciiVideoUrl(null)
     setAsciiDimensions({ width: 0, height: 0 })
     setAspectRatio(1)
   }
 
-  const bgGradient = theme === 'dark' 
-    ? 'bg-gradient-to-br from-gray-900 to-gray-800' 
+  const bgGradient = theme === 'dark'
+    ? 'bg-gradient-to-br from-gray-900 to-gray-800'
     : 'bg-gradient-to-br from-gray-100 to-gray-300'
 
   return (
@@ -83,7 +124,7 @@ function App() {
       <input
         type="file"
         id="fileInput"
-        accept="image/*"
+        accept="image/*,video/*,.gif"
         className="hidden"
         onChange={onFileSelect}
       />
@@ -122,7 +163,7 @@ function App() {
           
           {/* Work Zone */}
           <div className="w-full max-w-full max-h-[65vh] flex items-center justify-center overflow-auto">
-            {!imageUrl && !asciiText ? (
+            {!mediaUrl && !asciiText && !asciiVideoUrl ? (
               <button 
                 onClick={() => document.getElementById('fileInput').click()}
                 className="flex flex-col items-center gap-4 bg-white dark:bg-gray-900 border-[3px] border-dashed border-green-500 rounded-2xl px-16 py-12 cursor-pointer transition-all duration-300 hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 hover:-translate-y-0.5 shadow-lg hover:shadow-xl text-green-600 dark:text-green-400"
@@ -132,20 +173,44 @@ function App() {
                   <polyline points="17 8 12 3 7 8"></polyline>
                   <line x1="12" y1="3" x2="12" y2="15"></line>
                 </svg>
-                <span className="text-lg font-semibold">Загрузить изображение</span>
+                <span className="text-lg font-semibold">Загрузить изображение, GIF или видео</span>
               </button>
             ) : (
               <>
-                {!asciiText ? (
+                {!asciiText && !asciiVideoUrl ? (
                   <div
-                    className={`w-full bg-white dark:bg-gray-900 border-[3px] ${imageUrl ? 'border-solid' : 'border-dashed'} border-green-500 rounded-2xl flex items-center justify-center cursor-default shadow-lg overflow-hidden relative ${processing ? 'pointer-events-none' : ''}`}
+                    className={`w-full bg-white dark:bg-gray-900 border-[3px] ${mediaUrl ? 'border-solid' : 'border-dashed'} border-green-500 rounded-2xl flex items-center justify-center cursor-default shadow-lg overflow-hidden relative ${processing ? 'pointer-events-none' : ''}`}
                     style={{ aspectRatio }}
                   >
-                    {imageUrl && (
+                    {mediaUrl && mediaType === 'image' && (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <img src={imageUrl} alt="Preview" className="w-full h-full object-contain rounded-xl" />
+                        <img src={mediaUrl} alt="Preview" className="w-full h-full object-contain rounded-xl" />
                       </div>
                     )}
+                    {mediaUrl && mediaType === 'gif' && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <img src={mediaUrl} alt="GIF Preview" className="w-full h-full object-contain rounded-xl" />
+                      </div>
+                    )}
+                    {mediaUrl && mediaType === 'video' && (
+                      <video 
+                        src={mediaUrl} 
+                        controls 
+                        className="w-full h-full object-contain rounded-xl"
+                        style={{ maxHeight: '65vh' }}
+                      />
+                    )}
+                  </div>
+                ) : asciiVideoUrl ? (
+                  <div className="max-w-[55vw] max-h-[55vh] bg-white dark:bg-gray-900 border-[3px] border-green-500 rounded-2xl shadow-lg overflow-hidden">
+                    <video 
+                      ref={videoRef}
+                      src={asciiVideoUrl} 
+                      controls 
+                      autoPlay 
+                      loop
+                      className="w-full h-full"
+                    />
                   </div>
                 ) : (
                   <div className="max-w-[55vw] max-h-[55vh] bg-white dark:bg-gray-900 border-[3px] border-green-500 rounded-2xl shadow-lg overflow-auto block">
@@ -160,18 +225,23 @@ function App() {
 
           {/* Sidebar */}
           <div className="min-w-[200px] lg:min-w-fit flex flex-col gap-4">
-            {(imageUrl || asciiText) && (
+            {(mediaUrl || asciiText || asciiVideoUrl) && (
               <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-lg transition-colors duration-300">
                 {processing ? (
                   <div className="flex flex-col items-center gap-4 text-green-500">
                     <div className="w-12 h-12 border-4 border-green-900 dark:border-green-900 border-t-green-500 rounded-full animate-spin"></div>
-                    <p className="text-lg font-medium text-green-600 dark:text-green-400">Обработка изображения...</p>
+                    <p className="text-lg font-medium text-green-600 dark:text-green-400">
+                      {mediaType === 'video' || mediaType === 'gif'
+                        ? 'Конвертация в ASCII видео...'
+                        : 'Обработка изображения...'
+                      }
+                    </p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
                     {asciiText && (
                       <>
-                        <button 
+                        <button
                           onClick={copyToClipboard}
                           className="bg-green-500 text-white border-none px-6 py-3 rounded-lg text-base font-semibold cursor-pointer transition-all duration-300 hover:bg-green-600 hover:-translate-y-0.5 shadow-md hover:shadow-lg w-full"
                         >
@@ -188,7 +258,16 @@ function App() {
                         </button>
                       </>
                     )}
-                    <button 
+                    {asciiVideoUrl && (
+                      <a
+                        href={asciiVideoUrl}
+                        download={mediaType === 'gif' ? 'ascii-animation.gif' : 'ascii-video.mp4'}
+                        className="bg-green-500 text-white text-center px-6 py-3 rounded-lg text-base font-semibold cursor-pointer transition-all duration-300 hover:bg-green-600 hover:-translate-y-0.5 shadow-md hover:shadow-lg w-full no-underline block"
+                      >
+                        Скачать {mediaType === 'gif' ? 'GIF' : 'Видео'}
+                      </a>
+                    )}
+                    <button
                       onClick={reset}
                       className="bg-transparent text-green-500 border-2 border-green-500 px-6 py-3 rounded-lg text-base font-semibold cursor-pointer transition-all duration-300 hover:bg-green-500 hover:text-white hover:-translate-y-0.5 shadow-md hover:shadow-lg w-full"
                     >
